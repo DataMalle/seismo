@@ -19,16 +19,16 @@ export function SignificantTab({
           <h3 id="briefing-title">Today's summary · {dateOnly(briefing.briefing_date)}</h3>
           <p>{briefing.briefing}</p>
           <p className="muted small">
-            Written by an LLM ({briefing.llm_endpoint ?? "unknown model"}) from numbers counted in SQL and checked by a dbt test.
+            Written by an LLM ({briefing.llm_endpoint ?? "unknown model"}) from figures counted in SQL and checked by a dbt test.
           </p>
         </section>
       )}
       <div className="grid-3-2">
         <section className="card" aria-labelledby="sig-title">
-          <h3 id="sig-title">Quakes of magnitude 4.5 or higher</h3>
+          <h3 id="sig-title">Quakes of magnitude 4.5 and up</h3>
           <p className="muted small">
-            Last 90 days. An LLM extracts the country from the USGS place description. 🌊 is the USGS flag <em>tsunami=1</em> (a large
-            event in an ocean area). It does <strong>not</strong> mean a tsunami happened.
+            Last 90 days. An LLM pulls the country out of the USGS place description. 🌊 is the USGS flag <em>tsunami=1</em>, set for large
+            events in ocean areas. It does <strong>not</strong> mean a tsunami happened.
           </p>
           <div className="table-wrap" tabIndex={0}>
             <table>
@@ -49,7 +49,7 @@ export function SignificantTab({
                       <span className={`mag ${e.magnitude >= 6 ? "mag-high" : ""}`}>{formatMagnitude(e.magnitude)}</span>
                       {e.tsunami_flag && (
                         <span
-                          title="USGS flag tsunami=1: a large event in an ocean area. It does not mean a tsunami happened or will happen."
+                          title="USGS flag tsunami=1: a large event in an ocean area. It doesn't mean a tsunami happened or will happen."
                           aria-label="Ocean event according to the USGS tsunami flag"
                         >
                           {" "}
@@ -68,7 +68,7 @@ export function SignificantTab({
         </section>
         <section className="card" aria-labelledby="country-title">
           <h3 id="country-title">Most active countries</h3>
-          <p className="muted small">Number of quakes in the last 30 days.</p>
+          <p className="muted small">Quakes in the last 30 days.</p>
           <div style={{ height: Math.max(220, topCountries.length * 30) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topCountries} layout="vertical" margin={{ left: 8, right: 16 }}>

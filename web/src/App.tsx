@@ -34,7 +34,7 @@ export default function App() {
         )}
         {state.status === "error" && (
           <div role="alert">
-            <h2>Could not load data</h2>
+            <h2>Couldn't load the data</h2>
             <p className="muted small">{state.message}</p>
             <button className="button" onClick={reload}>
               Try again
@@ -53,7 +53,7 @@ export default function App() {
         )}
       </main>
       <footer className="muted small">
-        Malvin Portfolio Project. Data: USGS Earthquake Hazards Program. Use official sources for any safety decision.
+        Malvin Portfolio Project. Data: USGS Earthquake Hazards Program. Check official sources before making any safety decision.
       </footer>
     </div>
   );

@@ -31,7 +31,7 @@ export function TrendsTab({ daily }: { daily: DailyRow[] }) {
   const data = useMemo(() => pivotDaily(daily), [daily]);
   return (
     <section className="card" aria-labelledby="trend-title">
-      <h3 id="trend-title">Quakes per day by magnitude class</h3>
+      <h3 id="trend-title">Quakes per day, by magnitude</h3>
       <div style={{ height: 340 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ left: 0, right: 8, top: 8 }}>
@@ -46,7 +46,7 @@ export function TrendsTab({ daily }: { daily: DailyRow[] }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <p className="muted small">Days near the start of the history can be incomplete until the backfill has caught up.</p>
+      <p className="muted small">The first days of the history can be incomplete until the backfill catches up.</p>
     </section>
   );
 }

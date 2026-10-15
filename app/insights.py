@@ -26,14 +26,14 @@ def sla_status(minutes: float | None) -> str:
 
 def humanize_minutes(minutes: float | None) -> str:
     if minutes is None:
-        return "okänt"
+        return "unknown"
     if minutes < 1:
-        return "nyss"
+        return "just now"
     if minutes < 120:
-        return f"{minutes:.0f} min sedan"
+        return f"{minutes:.0f} min ago"
     if minutes < 48 * 60:
-        return f"{minutes / 60:.0f} h sedan"
-    return f"{minutes / 1440:.0f} dygn sedan"
+        return f"{minutes / 60:.0f} h ago"
+    return f"{minutes / 1440:.0f} days ago"
 
 
 def last_24h(events: pd.DataFrame, now: datetime | None = None) -> pd.DataFrame:
@@ -49,9 +49,9 @@ def marker_radius_m(magnitude: float) -> float:
 
 # En enda källa för djupfärgerna: kartans markörer och legenden under den läser båda härifrån.
 DEPTH_BANDS = (
-    ("grunda", "<70 km", 70, (209, 14, 97)),
-    ("mellan", "70–300 km", 300, (230, 140, 40)),
-    ("djupa", ">300 km", None, (21, 123, 147)),
+    ("shallow", "<70 km", 70, (209, 14, 97)),
+    ("mid", "70–300 km", 300, (230, 140, 40)),
+    ("deep", ">300 km", None, (21, 123, 147)),
 )
 UNKNOWN_DEPTH_RGB = (122, 122, 122)
 MARKER_ALPHA = 170

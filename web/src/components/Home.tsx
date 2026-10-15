@@ -15,8 +15,8 @@ export function Home({ data }: { data: Dashboard }) {
   return (
     <>
       <p className="lede">
-        Live earthquake data from USGS, run through a lakehouse pipeline. {formatInt(recent.length)} quakes in the last 24 hours
-        {top ? `, strongest this week M ${formatMagnitude(top.magnitude)}` : ""}. Data fetched {humanizeMinutes(age)}.
+        Earthquake data from USGS, refreshed every hour. {formatInt(recent.length)} quakes in the last 24 hours
+        {top ? `, and the strongest this week was M ${formatMagnitude(top.magnitude)}` : ""}. Last fetched {humanizeMinutes(age)}.
       </p>
       <nav className="filters" aria-label="Filter works">
         {FILTER_TAGS.map((t) => (

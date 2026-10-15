@@ -35,7 +35,7 @@ def test_minutes_since_handles_naive_aware_and_missing():
 
 @pytest.mark.parametrize(
     ("minutes", "text"),
-    [(0.2, "nyss"), (12, "12 min sedan"), (180, "3 h sedan"), (3 * 1440, "3 dygn sedan"), (None, "okänt")],
+    [(0.2, "just now"), (12, "12 min ago"), (180, "3 h ago"), (3 * 1440, "3 days ago"), (None, "unknown")],
 )
 def test_humanize_minutes(minutes, text):
     assert humanize_minutes(minutes) == text

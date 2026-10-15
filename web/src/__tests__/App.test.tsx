@@ -49,7 +49,7 @@ describe("App", () => {
     mockFetch(FILES);
     render(<App />);
     expect(await screen.findByText(/1 quakes in the last 24 hours/)).toBeInTheDocument();
-    expect(screen.getByText(/strongest this week M 7\.7/)).toBeInTheDocument();
+    expect(screen.getByText(/strongest this week was M 7\.7/)).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /MAP|SIGNIFICANT|TRENDS|PLATFORM/ })).toHaveLength(4);
   });
 
@@ -100,7 +100,7 @@ describe("App", () => {
   it("shows an error with a retry button when loading fails", async () => {
     mockFetch({}, false);
     render(<App />);
-    expect(await screen.findByText("Could not load data")).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't load the data")).toBeInTheDocument();
     mockFetch(FILES);
     await userEvent.setup().click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(screen.getByText(/quakes in the last 24 hours/)).toBeInTheDocument());

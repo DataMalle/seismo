@@ -38,7 +38,7 @@ function MapDetail({ data }: { data: Dashboard }) {
         ))}
       </div>
       <p className="muted small" role="status">
-        {events.length} of {data.eventMap.length} quakes from the last 7 days. Size shows magnitude, color shows depth. Click a quake for details.
+        {events.length} of {data.eventMap.length} quakes from the last 7 days. Bigger circles are stronger quakes, and color shows depth. Click one for details.
       </p>
       <MapView events={events} />
       <DepthLegend />
