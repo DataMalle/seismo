@@ -15,7 +15,9 @@ ogiltiga svar och ska inte köras om i onödan.
 3. **Kostnadstak.** Högst `llm_batch_size` (100) nya orter per körning. Ett backlog tas ikapp över flera körningar.
 4. **Validering.** Svaret måste vara tolkbar JSON, `location_type` måste vara ett av fyra tillåtna värden och landskoden måste
    vara två tecken. Annars sparas raden med `is_valid = false` och försöks om först efter ett dygn. `gold`-modellerna använder bara giltiga rader.
-5. **Isolering.** AI-modellerna har taggen `ai` och körs i en egen task *efter* kärnbygget. Ett LLM-fel blockerar aldrig kärndata.
+5. **Isolering.** AI-modellerna har taggen `ai` och körs som sista kommandot i dbt-tasken, *efter* kärnbygget och freshness. Ett LLM-fel kan
+   därför aldrig blockera kärndata, som redan är publicerad. En hook skapar en tom `event_locations` om den saknas, så att gold alltid kan joina mot den.
+   (Jag körde först AI-stegen som en egen task, men varje dbt-task betalar en egen miljöstart på minuter, så de delar nu task.)
 6. **Siffror räknas aldrig av modellen.** Det dagliga sammandraget (`gold_daily_briefing`) får färdigräknade fakta från SQL och
    formulerar dem bara. Ett dbt-test verifierar att den starkaste magnituden står i texten.
 

@@ -14,6 +14,9 @@ vars:
   llm_batch_size: 100 # högst så många nya platsbeskrivningar per körning (kostnadstak)
   prompt_version: v1
 
+on-run-start:
+  - "{{ ensure_event_locations() }}"
+
 models:
   seismo:
     +persist_docs: # beskrivningar i YAML skrivs som kommentarer i Unity Catalog

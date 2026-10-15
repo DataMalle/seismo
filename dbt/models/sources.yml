@@ -28,6 +28,6 @@ sources:
         description: En rad per extraktionskörning. Fungerar som pipelinens hjärtslag.
         config:
           loaded_at_field: polled_at
-          freshness: # SLA: jobbet körs var 30:e minut
-            warn_after: {count: 45, period: minute}
+          freshness: # SLA: jobbet körs varje timme
+            warn_after: {count: 90, period: minute}
             error_after: {count: 3, period: hour}

@@ -185,7 +185,7 @@ def tab_platform(health: pd.DataFrame) -> None:
     label = {"ok": "✅ Inom SLA", "warn": "⚠️ Nära SLA-gränsen", "breach": "🔴 SLA bruten"}[status]
     a, b, c, d = st.columns(4)
     a.metric("Senaste körning", humanize_minutes(minutes))
-    b.metric("Färskhets-SLA (90 min)", label)
+    b.metric("Färskhets-SLA (150 min)", label)
     c.metric("Ändrade händelser, 24 h", f"{int(h['updates_24h']):,}".replace(",", " "))
     d.metric("Revideringar, 24 h", f"{int(h['revisions_24h']):,}".replace(",", " "))
     e, f, g, i = st.columns(4)
@@ -220,7 +220,7 @@ def main() -> None:
     hero(
         "Seismo",
         "Malvin Portfolio Project · Live lakehouse-plattform över globala jordbävningar (USGS) med CDC, dbt, datakontrakt och AI-berikning.",
-        "Live · uppdateras var 30:e minut",
+        "Live · uppdateras varje timme",
     )
     _load_streamlit_secrets_into_env()
     try:

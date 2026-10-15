@@ -1,0 +1,21 @@
+name: USGS API-kontrakt (live)
+
+# Mockade tester kan inte upptäcka att USGS ändrar beteende. Det här workflowet gör riktiga anrop varje natt och larmar
+# (rött körning) om API:et slutat acceptera våra frågor, ändrat fälten vi förlitar oss på eller blivit långsamt.
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install pytest pandas
+      - run: pytest -m live

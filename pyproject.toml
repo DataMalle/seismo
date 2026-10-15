@@ -7,7 +7,8 @@ requires-python = ">=3.12"
 [tool.pytest.ini_options]
 pythonpath = ["pipeline", "app", "ops"]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m 'not live'"
+markers = ["live: kontraktstester mot det riktiga USGS-API:et (kräver nätverk). Kör med pytest -m live"]
 
 [tool.ruff]
 line-length = 120
@@ -23,3 +24,4 @@ ignore = ["RUF001", "RUF002", "RUF003"]  # svenska tecken och typografiska tanks
 "app/style.py" = ["E501"]  # CSS
 "app/app.py" = ["E501"]  # UI-texter och graphviz-definition
 "pipeline/0*.py" = ["E402", "E501"]  # notebooks: importer i senare celler och långa markdown-rader
+"ops/benchmark_layouts.py" = ["E501"]  # SQL-mallar och markdown

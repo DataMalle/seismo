@@ -16,40 +16,65 @@ def feat(event_id: str, updated_ms: int) -> dict:
 # --- fönsterplanering ---
 
 
-def test_bootstrap_without_watermark_covers_bootstrap_days_in_day_chunks():
+def test_bootstrap_uses_reliable_daily_windows_plus_best_effort_deletion_checks():
     windows = lib.plan_windows(None, NOW, bootstrap_days=3)
-    assert len(windows) == 3
-    assert windows[0].updated_after == NOW - timedelta(days=3)
-    assert windows[-1].updated_before == NOW
+    main = [w for w in windows if not w.best_effort]
+    checks = [w for w in windows if w.best_effort]
+    assert len(main) == 3 and all(w.by == "event_time" and not w.include_deleted for w in main)
+    assert len(checks) == 3 and all(w.include_deleted and w.deleted_only for w in checks)
+    assert main[0].start == NOW - timedelta(days=3) and main[-1].end == NOW
 
 
-def test_incremental_starts_at_watermark_minus_overlap():
+def test_incremental_is_one_required_updatedafter_call_plus_one_best_effort_deletion_check():
     wm = NOW - timedelta(minutes=20)
-    windows = lib.plan_windows(wm, NOW)
-    assert len(windows) == 1
-    assert windows[0].updated_after == wm - lib.OVERLAP
+    changes, deletions = lib.plan_windows(wm, NOW)
+    assert (changes.by, changes.start, changes.end) == ("updated", wm - lib.OVERLAP, None)
+    assert not changes.include_deleted and not changes.best_effort  # huvudhämtningen får aldrig vara flaksig
+    assert (
+        deletions.by == "event_time" and deletions.include_deleted and deletions.deleted_only and deletions.best_effort
+    )
+    assert deletions.start == NOW - lib.DELETION_LOOKBACK and deletions.end == NOW
 
 
-def test_long_gap_is_chunked_and_contiguous():
-    wm = NOW - timedelta(days=5)
-    windows = lib.plan_windows(wm, NOW)
-    assert len(windows) >= 5
+def test_deletion_check_covers_the_whole_gap_after_a_long_outage():
+    wm = NOW - timedelta(days=10)
+    _, deletions = lib.plan_windows(wm, NOW)
+    assert deletions.start == wm - lib.OVERLAP  # bakåt till luckans början, inte bara tre dagar
+
+
+def test_event_time_windows_are_contiguous():
+    windows = lib.event_time_windows(NOW - timedelta(days=5), NOW)
+    assert len(windows) == 5
     for earlier, later in itertools.pairwise(windows):
-        assert earlier.updated_before == later.updated_after  # inga luckor mellan fönstren
-    assert windows[-1].updated_before == NOW
+        assert earlier.end == later.start  # inga luckor mellan fönstren
+    assert windows[-1].end == NOW
 
 
-def test_no_windows_when_watermark_is_in_the_future():
-    assert lib.plan_windows(NOW + timedelta(hours=1), NOW) == []
+def test_event_time_windows_empty_when_start_is_not_before_end():
+    assert lib.event_time_windows(NOW, NOW) == []
+    assert lib.event_time_windows(NOW + timedelta(hours=1), NOW) == []
 
 
 # --- URL ---
 
 
-def test_build_url_requests_change_feed_with_deletions():
-    url = lib.build_url(lib.Window(NOW - timedelta(hours=1), NOW))
+def test_changes_url_uses_updatedafter_and_never_the_slow_or_invalid_parameters():
+    url = lib.build_url(lib.Window(NOW - timedelta(hours=1)))
     assert "updatedafter=2026-10-15T11%3A00%3A00" in url
-    assert "includedeleted=true" in url and "format=geojson" in url and "offset=1" in url
+    assert "updatedbefore" not in url  # finns inte hos USGS (HTTP 400)
+    assert "includedeleted" not in url  # updatedafter + includedeleted är extremt långsamt
+    assert "format=geojson" in url and "offset=1" in url
+
+
+def test_main_event_time_url_never_asks_for_deleted_events():
+    url = lib.build_url(lib.event_time_windows(NOW - timedelta(days=1), NOW)[0])
+    assert "starttime=2026-10-14T12%3A00%3A00" in url and "endtime=2026-10-15T12%3A00%3A00" in url
+    assert "includedeleted" not in url and "updatedafter" not in url  # opålitligt hos USGS (504), se ADR 0003
+
+
+def test_deletion_check_url_asks_for_deleted_events():
+    url = lib.build_url(lib.deletion_windows(NOW - timedelta(days=3), NOW)[0])
+    assert "includedeleted=true" in url and "starttime=" in url
 
 
 # --- paginering och dedupe ---
@@ -65,7 +90,7 @@ def test_fetch_window_paginates_until_a_short_page(monkeypatch):
         seen_offsets.append(offset)
         return {"features": pages[offset]}
 
-    out = lib.fetch_window(lib.Window(NOW - timedelta(days=1), NOW), fetch=fake_fetch)
+    out = lib.fetch_window(lib.Window(NOW - timedelta(days=1)), fetch=fake_fetch)
     assert [f["id"] for f in out] == ["a", "b", "c"]
     assert seen_offsets == [1, 3]
 
@@ -102,3 +127,27 @@ def test_landing_filename_and_schema_prefix():
 @pytest.mark.parametrize("ms", [0, 1_700_000_000_000])
 def test_ms_roundtrip(ms):
     assert lib.to_ms(lib.utc(ms)) == ms
+
+
+def test_best_effort_windows_use_the_fast_fetch_and_required_ones_do_not(monkeypatch):
+    used = []
+    monkeypatch.setattr(lib, "fetch_json_fast", lambda url: used.append("fast") or {"features": []})
+    monkeypatch.setattr(lib, "fetch_json", lambda url, **kw: used.append("normal") or {"features": []})
+    lib.fetch_window(lib.Window(NOW - timedelta(days=1)))
+    lib.fetch_window(lib.deletion_windows(NOW - timedelta(days=1), NOW)[0])
+    assert used == ["normal", "fast"]
+
+
+def test_fetch_json_fast_is_a_single_short_attempt(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(lib, "fetch_json", lambda url, **kw: seen.update(kw) or {"features": []})
+    lib.fetch_json_fast("http://x")
+    assert seen == {"retries": 1, "timeout": 25}
+
+
+def test_deleted_only_window_keeps_only_deleted_features():
+    window = lib.Window(NOW - timedelta(days=3), NOW, "event_time", include_deleted=True, deleted_only=True)
+    gone = feat("gone", 2) | {"properties": {"updated": 2, "status": "deleted"}}
+    kept = feat("kept", 1) | {"properties": {"updated": 1, "status": "reviewed"}}
+    out = lib.fetch_window(window, fetch=lambda url: {"features": [kept, gone]})
+    assert [f["id"] for f in out] == ["gone"]

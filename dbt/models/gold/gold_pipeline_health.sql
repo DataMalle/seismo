@@ -27,6 +27,6 @@ select
     (select count(*) from {{ ref('event_history') }}
         where revision_number > 1 and valid_from > current_timestamp() - interval 24 hours)               as revisions_24h,
     (select count(*) from {{ source('bronze', 'usgs_events_quarantine') }})             as quarantined_rows,
-    (select avg(case when is_valid then 1.0 else 0.0 end) from {{ ref('event_locations') }}) as llm_valid_ratio,
+    (select cast(avg(case when is_valid then 1.0 else 0.0 end) as double) from {{ ref('event_locations') }}) as llm_valid_ratio,
     (select polls from polls_24h)                                                       as polls_24h,
     (select failed from polls_24h)                                                      as failed_polls_24h

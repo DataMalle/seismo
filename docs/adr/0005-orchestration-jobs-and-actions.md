@@ -7,10 +7,10 @@ Asset-baserad orkestrering (Dagster) eller Airflow är vanliga val för pipeline
 dygnet runt utan kostnad, och en Dagster- eller Airflow-instans kräver en värd som alltid är på.
 
 ## Beslut
-- **Körning:** ett Databricks-jobb med schema var 30:e minut och beroenden mellan tasks (extraktion, bronze, dbt, AI, freshness).
+- **Körning:** ett Databricks-jobb med schema varje timme och beroenden mellan tasks (extraktion, bronze, dbt).
   Jobbet har `max_concurrent_runs: 1` och kö, så att watermark och `MERGE` aldrig tävlar.
 - **CI:** GitHub Actions kör lint, enhetstester och `dbt parse --warn-error` på varje push och PR.
-- **Larm:** ett *separat* watchdog-workflow läser `gold_pipeline_health` och öppnar ett GitHub-issue när färskhets-SLA:n (90 min)
+- **Larm:** ett *separat* watchdog-workflow läser `gold_pipeline_health` och öppnar ett GitHub-issue när färskhets-SLA:n (150 min, två missade körningar)
   bryts. Det stänger issuet när pipelinen är frisk igen.
 
 ## Varför larmet ligger utanför jobbet

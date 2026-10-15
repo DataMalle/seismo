@@ -4,8 +4,8 @@ from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
-SLA_OK_MINUTES = 45  # jobbet körs var 30:e minut
-SLA_BREACH_MINUTES = 90
+SLA_OK_MINUTES = 75  # jobbet körs varje timme
+SLA_BREACH_MINUTES = 150  # två missade körningar
 
 
 def minutes_since(ts: pd.Timestamp | datetime | None, now: datetime | None = None) -> float | None:

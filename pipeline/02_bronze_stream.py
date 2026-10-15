@@ -84,7 +84,7 @@ stream = (
 stream.awaitTermination()
 
 progress = stream.recentProgress
-rows = sum(p["numInputRows"] for p in progress)
+rows = sum(p.get("numInputRows") or 0 for p in progress)  # kan vara None för tomma batchar
 print(f"Micro-batchar: {len(progress)}, nya rader: {rows}")
 print("bronze.usgs_events:", spark.table(f"{bronze}.usgs_events").count())
 print("karantän:", spark.table(f"{bronze}.usgs_events_quarantine").count())

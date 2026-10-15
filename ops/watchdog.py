@@ -11,7 +11,7 @@ import sys
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
-DEFAULT_SLA_MINUTES = 90  # två missade 30-minuterskörningar plus marginal
+DEFAULT_SLA_MINUTES = 150  # två missade timkörningar plus marginal
 
 
 @dataclass(frozen=True)

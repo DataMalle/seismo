@@ -11,7 +11,7 @@ NOW = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
 
 @pytest.mark.parametrize(
     ("minutes", "expected"),
-    [(0, "ok"), (30, "ok"), (45, "ok"), (46, "warn"), (90, "warn"), (91, "breach"), (None, "breach")],
+    [(0, "ok"), (30, "ok"), (75, "ok"), (76, "warn"), (150, "warn"), (151, "breach"), (None, "breach")],
 )
 def test_sla_status_thresholds(minutes, expected):
     assert sla_status(minutes) == expected

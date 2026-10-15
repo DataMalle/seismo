@@ -81,7 +81,7 @@ unit_tests:
     expect:
       rows:
         - {event_id: x, magnitude: 2.4, review_status: reviewed, is_deleted: false}
-        - {event_id: y, is_deleted: true}
+        - {event_id: y, magnitude: 1.0, review_status: deleted, is_deleted: true}
 
   - name: events_extracts_distance_direction_and_locality_with_regex
     description: Avstånd, riktning och ort plockas ut deterministiskt, utan LLM.

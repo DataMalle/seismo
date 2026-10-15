@@ -1,9 +1,10 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Extraktion: USGS ändringsfeed (CDC) till landing-volymen
-# MAGIC Hämtar alla skalv som *uppdaterats* sedan senaste watermark (nya, reviderade och raderade) via FDSN `updatedafter`.
+# MAGIC Hämtar alla skalv som *uppdaterats* sedan senaste watermark (nya och reviderade) via FDSN `updatedafter`, och stämmer av
+# MAGIC raderingar med ett separat fönster (`updatedafter` + `includedeleted` är för långsamt hos USGS, se ADR 0003).
 # MAGIC - **Watermark** hämtas ur bronze-tabellen, så det finns inget externt tillstånd att tappa bort.
-# MAGIC - **Gap-medveten:** en lång lucka delas upp i dagsfönster, så att inget anrop passerar USGS sidgräns.
+# MAGIC - **Bootstrap/backfill:** dagsfönster av händelsetid, så att inget anrop passerar USGS sidgräns på 20 000 träffar.
 # MAGIC - **Idempotent:** versioner som redan finns i bronze skrivs inte igen, och filen skrivs atomiskt.
 # MAGIC - **Backfill:** `mode=backfill` hämtar ett explicit intervall, ett fönster per fil, och hoppar över fönster som redan finns.
 # MAGIC
@@ -44,9 +45,14 @@ CREATE TABLE IF NOT EXISTS {ops}.poll_log (
   fetched INT COMMENT 'Features som USGS returnerade',
   new_versions INT COMMENT 'Varav nya versioner som skrevs till landing',
   watermark_before TIMESTAMP, watermark_after TIMESTAMP,
-  duration_s DOUBLE, status STRING, error STRING
+  duration_s DOUBLE, status STRING, error STRING,
+  warnings INT COMMENT 'Antal best effort-anrop (raderingsavstämning) som misslyckades'
 ) COMMENT 'En rad per extraktionskörning. Pipelinens hjärtslag.'
 """)
+if "warnings" not in spark.table(f"{ops}.poll_log").columns:  # tabell skapad av en äldre version
+    spark.sql(
+        f"ALTER TABLE {ops}.poll_log ADD COLUMNS (warnings INT COMMENT 'Antal best effort-anrop som misslyckades')"
+    )
 
 # COMMAND ----------
 
@@ -81,7 +87,7 @@ started = time.monotonic()
 now = datetime.now(UTC)
 run_id = uuid.uuid4().hex[:12]
 watermark_before = current_watermark()
-fetched = new_total = n_windows = 0
+fetched = new_total = n_windows = warnings = 0
 watermark_after = watermark_before
 status, error = "success", None
 
@@ -89,7 +95,7 @@ try:
     if mode == "backfill":
         start = datetime.fromisoformat(dbutils.widgets.get("backfill_start")).replace(tzinfo=UTC)
         end = datetime.fromisoformat(dbutils.widgets.get("backfill_end")).replace(tzinfo=UTC)
-        windows = list(lib.split_range(start, end, lib.DEFAULT_CHUNK))
+        windows = lib.event_time_windows(start, end)
     else:
         windows = lib.plan_windows(watermark_before, now, bootstrap_days=int(dbutils.widgets.get("bootstrap_days")))
     n_windows = len(windows)
@@ -97,11 +103,19 @@ try:
     collected: list[dict] = []
 
     for window in windows:
-        name = lib.landing_filename(window.updated_after, "backfill") if mode == "backfill" else None
+        name = lib.landing_filename(window.start, "backfill") if mode == "backfill" else None
         if name and (landing / name).exists():
-            print(f"{window.updated_after:%Y-%m-%d}: finns redan, hoppar över")
+            print(f"{window.start:%Y-%m-%d}: finns redan, hoppar över")
             continue
-        features = lib.fetch_window(window)
+        try:
+            features = lib.fetch_window(window)
+        except Exception as e:
+            if not window.best_effort:
+                raise
+            # Raderingsavstämningen är best effort: USGS includedeleted är sporadiskt långsamt (ADR 0003).
+            warnings += 1
+            print(f"VARNING: best effort-fönster {window.start:%Y-%m-%d} misslyckades: {str(e)[:160]}")
+            continue
         fetched += len(features)
         fresh = lib.drop_known(features, known)
         known |= {lib.feature_key(f) for f in fresh}
@@ -117,7 +131,7 @@ try:
         new_total = len(collected)
     newest = lib.max_updated(collected) if mode == "incremental" else None
     watermark_after = max(filter(None, [watermark_before, newest]), default=None)
-    print(f"{n_windows} fönster, {fetched} hämtade, {new_total} nya versioner")
+    print(f"{n_windows} fönster, {fetched} hämtade, {new_total} nya versioner, {warnings} varningar")
 except Exception as e:
     status, error = "failed", str(e)[:500]
     raise
@@ -136,8 +150,9 @@ finally:
                 round(time.monotonic() - started, 2),
                 status,
                 error,
+                warnings,
             )
         ],
         "polled_at timestamp, run_id string, mode string, windows int, fetched int, new_versions int, "
-        "watermark_before timestamp, watermark_after timestamp, duration_s double, status string, error string",
+        "watermark_before timestamp, watermark_after timestamp, duration_s double, status string, error string, warnings int",
     ).write.mode("append").saveAsTable(f"{ops}.poll_log")
