@@ -123,49 +123,57 @@ record("c_liquid_clustered", f"{schema}.events_clustered")
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS {schema}.events_microbatch")
-spark.sql(
-    f"CREATE TABLE {schema}.events_microbatch CLUSTER BY (event_time) AS SELECT * FROM {schema}.events_plain WHERE 1 = 0"
-)
-t0 = time.perf_counter()
-for i in range(small_batches):
-    synthetic(rows_per_batch, id_offset=i * rows_per_batch).write.format("delta").mode("append").saveAsTable(
-        f"{schema}.events_microbatch"
-    )
-ingest_s = round(time.perf_counter() - t0, 1)
-before = table_stats(f"{schema}.events_microbatch")
-print(f"{small_batches} micro-batchar à {rows_per_batch} rader skrevs på {ingest_s}s: {before}")
 
-for qname, tmpl in QUERIES.items():
-    results.append(
-        {
-            "experiment": "microbatch",
-            "layout": "before_optimize",
-            "query": qname,
-            "seconds": timed(tmpl.format(t=f"{schema}.events_microbatch")),
-            **before,
-            "note": f"ingest {ingest_s}s",
-        }
+def microbatch_experiment() -> None:
+    spark.sql(f"DROP TABLE IF EXISTS {schema}.events_microbatch")
+    spark.sql(
+        f"CREATE TABLE {schema}.events_microbatch CLUSTER BY (event_time) AS SELECT * FROM {schema}.events_plain WHERE 1 = 0"
     )
+    t0 = time.perf_counter()
+    for i in range(small_batches):
+        synthetic(rows_per_batch, id_offset=i * rows_per_batch).write.format("delta").mode("append").saveAsTable(
+            f"{schema}.events_microbatch"
+        )
+    ingest_s = round(time.perf_counter() - t0, 1)
+    before = table_stats(f"{schema}.events_microbatch")
+    print(f"{small_batches} micro-batchar à {rows_per_batch} rader skrevs på {ingest_s}s: {before}")
 
-t0 = time.perf_counter()
-spark.sql(f"OPTIMIZE {schema}.events_microbatch")
-optimize_s = round(time.perf_counter() - t0, 1)
-after = table_stats(f"{schema}.events_microbatch")
-print(f"OPTIMIZE tog {optimize_s}s: {after}")
-for qname, tmpl in QUERIES.items():
-    results.append(
-        {
-            "experiment": "microbatch",
-            "layout": "after_optimize",
-            "query": qname,
-            "seconds": timed(tmpl.format(t=f"{schema}.events_microbatch")),
-            **after,
-            "note": f"optimize {optimize_s}s",
-        }
-    )
+    for qname, tmpl in QUERIES.items():
+        results.append(
+            {
+                "experiment": "microbatch",
+                "layout": "before_optimize",
+                "query": qname,
+                "seconds": timed(tmpl.format(t=f"{schema}.events_microbatch")),
+                **before,
+                "note": f"ingest {ingest_s}s",
+            }
+        )
 
-# COMMAND ----------
+    t0 = time.perf_counter()
+    spark.sql(f"OPTIMIZE {schema}.events_microbatch")
+    optimize_s = round(time.perf_counter() - t0, 1)
+    after = table_stats(f"{schema}.events_microbatch")
+    print(f"OPTIMIZE tog {optimize_s}s: {after}")
+    for qname, tmpl in QUERIES.items():
+        results.append(
+            {
+                "experiment": "microbatch",
+                "layout": "after_optimize",
+                "query": qname,
+                "seconds": timed(tmpl.format(t=f"{schema}.events_microbatch")),
+                **after,
+                "note": f"optimize {optimize_s}s",
+            }
+        )
+
+    # COMMAND ----------
+
+
+if small_batches > 0:
+    microbatch_experiment()
+else:
+    print("small_batches = 0: hoppar över småfilsexperimentet")
 
 out = spark.createDataFrame(results).withColumn("run_at", F.current_timestamp()).withColumn("rows", F.lit(rows))
 out.write.mode("append").saveAsTable(f"{ops}.benchmark_results")
