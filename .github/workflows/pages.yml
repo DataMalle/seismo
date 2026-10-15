@@ -1,7 +1,7 @@
 name: Publicera webbsidan
 
 # Bygger React-sidan och lägger ut den på GitHub Pages. Sidan läser sitt data direkt från grenen `data`
-# (se docs/adr/0008), så den behöver inte byggas om när datat uppdateras.
+# (se docs/adr/0008), så den behöver inte byggas om när datat uppdateras. Kräver Settings > Pages > Source: GitHub Actions.
 on:
   push:
     branches: [main]
