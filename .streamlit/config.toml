@@ -1,11 +1,11 @@
 [theme]
-base = "light"
-primaryColor = "#157b93"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#e6e6e6"
-textColor = "#444444"
+base = "dark"
+primaryColor = "#ff2a45"
+backgroundColor = "#000000"
+secondaryBackgroundColor = "#0c0c0c"
+textColor = "#e8e8e8"
 font = "IBM Plex Mono"
-baseRadius = "medium"
+baseRadius = "none"
 
 [[theme.fontFaces]]
 family = "IBM Plex Mono"

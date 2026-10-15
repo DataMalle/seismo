@@ -21,7 +21,7 @@ from insights import (
     minutes_since,
     sla_status,
 )
-from style import TEAL, hero, inject_style
+from style import ACCENT_TRENDS, dark_chart, header, inject_style
 from warehouse import Warehouse
 
 st.set_page_config(page_title="Seismo - Malvin Portfolio Project", page_icon="🌍", layout="wide")
@@ -30,7 +30,7 @@ log = logging.getLogger("seismo")
 
 REPO_URL = "https://github.com/DataMalle/seismo"
 BUCKETS = ["<2", "2-3", "3-4", "4-5", "5+", "unknown"]
-BUCKET_COLORS = ["#d9d9d9", "#bdbdbd", "#8fb8c4", "#157b93", "#d10e61", "#7a7a7a"]
+BUCKET_COLORS = ["#3a3a3a", "#666666", "#6aa8b8", "#157b93", "#d10e61", "#7a7a7a"]
 
 
 @dataclass(frozen=True)
@@ -109,7 +109,7 @@ def tab_map(events: pd.DataFrame) -> None:
             layers=[layer],
             initial_view_state=pdk.ViewState(latitude=20, longitude=0, zoom=0.8),
             tooltip=tooltip,
-            map_style="light",
+            map_style="dark",
         ),
         height=520,
     )
@@ -151,7 +151,7 @@ def tab_significant(significant: pd.DataFrame, countries: pd.DataFrame, briefing
         top = countries.head(12)
         chart = (
             alt.Chart(top)
-            .mark_bar(color=TEAL, cornerRadiusEnd=3)
+            .mark_bar(color=ACCENT_TRENDS)
             .encode(
                 y=alt.Y("country:N", sort="-x", title=None, axis=alt.Axis(labelLimit=220, labelOverlap=False)),
                 x=alt.X("events_30d:Q", title=None),
@@ -159,7 +159,7 @@ def tab_significant(significant: pd.DataFrame, countries: pd.DataFrame, briefing
             )
             .properties(height=max(220, 28 * len(top)))
         )
-        st.altair_chart(chart, width="stretch")
+        st.altair_chart(dark_chart(chart), width="stretch")
 
 
 def tab_trends(daily: pd.DataFrame) -> None:
@@ -179,7 +179,7 @@ def tab_trends(daily: pd.DataFrame) -> None:
             )
             .properties(height=320)
         )
-        st.altair_chart(chart, width="stretch")
+        st.altair_chart(dark_chart(chart), width="stretch")
         st.caption("Dagar nära början av historiken kan vara ofullständiga tills backfillen hunnit ikapp.")
 
 
@@ -213,12 +213,12 @@ def tab_platform(health: pd.DataFrame) -> None:
         st.graphviz_chart(
             """
             digraph G {
-              rankdir=LR; node [shape=box, style="rounded,filled", fillcolor="#eef2f3", fontname="Helvetica"];
+              rankdir=LR; node [shape=box, style="rounded,filled", fillcolor="#111111", color="#c13cff", fontcolor="#e8e8e8", fontname="Helvetica"];
               usgs [label="USGS FDSN\\nändringsfeed (CDC)"]; land [label="Volume\\nrå NDJSON"];
               bronze [label="bronze\\nAuto Loader (streaming)\\nändringslogg"]; silver [label="silver (dbt)\\nMERGE + SCD2"];
-              llm [label="LLM-berikning\\nai_query, cachad", fillcolor="#fff7e6"]; gold [label="gold (dbt)\\nkontrakt + tester"];
-              app [label="Streamlit", fillcolor="#e6ffed"]; wd [label="watchdog\\nSLA till GitHub-issue", fillcolor="#ffecec"];
-              usgs -> land -> bronze -> silver -> gold -> app; silver -> llm -> gold; gold -> wd;
+              llm [label="LLM-berikning\\nai_query, cachad", fillcolor="#1a1308", color="#e68c28"]; gold [label="gold (dbt)\\nkontrakt + tester"];
+              app [label="Streamlit", fillcolor="#0a1a0d", color="#19ff3c"]; wd [label="watchdog\\nSLA till GitHub-issue", fillcolor="#1a0a0a", color="#ff2a45"];
+              edge [color="#666666"]; usgs -> land -> bronze -> silver -> gold -> app; silver -> llm -> gold; gold -> wd;
             }
             """
         )
@@ -230,9 +230,8 @@ def tab_platform(health: pd.DataFrame) -> None:
 
 def main() -> None:
     inject_style()
-    hero(
-        "Seismo",
-        "Malvin Portfolio Project · Live lakehouse-plattform över globala jordbävningar (USGS) med CDC, dbt, datakontrakt och AI-berikning.",
+    header(
+        "Malvin Portfolio Project. Live lakehouse-plattform över globala jordbävningar (USGS) med CDC, dbt, datakontrakt och AI-berikning.",
         "Live · uppdateras varje timme",
     )
     _load_streamlit_secrets_into_env()
@@ -271,7 +270,7 @@ def main() -> None:
     if strongest is not None:
         st.caption(f"Starkaste skalvet: {strongest['place']}, {strongest['event_time']:%Y-%m-%d %H:%M} UTC.")
 
-    t_map, t_sig, t_trend, t_platform = st.tabs(["🌍 Karta", "🔔 Betydande skalv", "📈 Trender", "🛠️ Plattformen"])
+    t_map, t_sig, t_trend, t_platform = st.tabs(["Karta", "Betydande skalv", "Trender", "Plattformen"])
     with t_map:
         tab_map(events)
     with t_sig:

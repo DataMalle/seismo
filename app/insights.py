@@ -73,4 +73,4 @@ def depth_legend_html() -> str:
         f'<span style="color: rgb({r},{g},{b}); font-size: 1.1em;">●</span> {label} ({span})'
         for label, span, _, (r, g, b) in DEPTH_BANDS
     ]
-    return '<div style="color: #7a7a7a; font-size: 0.85rem;">' + "&nbsp;&nbsp;&nbsp;".join(items) + "</div>"
+    return '<div style="color: #aaaaaa; font-size: 0.85rem;">' + "&nbsp;&nbsp;&nbsp;".join(items) + "</div>"
