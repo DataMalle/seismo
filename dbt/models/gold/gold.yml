@@ -45,7 +45,7 @@ models:
       - {name: depth_km, data_type: double, description: Djup i km., }
       - {name: latitude, data_type: double, description: Latitud., }
       - {name: longitude, data_type: double, description: Longitud., }
-      - {name: tsunami_warning, data_type: boolean, description: Sant om USGS flaggat tsunamirisk., constraints: [{type: not_null}]}
+      - {name: tsunami_flag, data_type: boolean, description: "USGS-flaggan tsunami=1: stor händelse i oceaniskt område. Det betyder INTE att en tsunami har inträffat eller kommer att inträffa.", constraints: [{type: not_null}]}
       - {name: significance, data_type: int, description: USGS signifikansindex., }
       - {name: felt_reports, data_type: int, description: Antal "did you feel it"-rapporter., }
       - {name: revisions, data_type: int, description: Hur många versioner USGS publicerat., }

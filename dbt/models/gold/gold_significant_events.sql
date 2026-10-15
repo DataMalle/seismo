@@ -8,7 +8,7 @@ select
     e.depth_km,
     e.latitude,
     e.longitude,
-    coalesce(e.tsunami_flag, 0) = 1  as tsunami_warning,
+    coalesce(e.tsunami_flag, 0) = 1  as tsunami_flag,
     e.significance,
     e.felt_reports,
     h.revisions,

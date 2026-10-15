@@ -6,6 +6,7 @@ include:
 
 sync:
   exclude:
+    - web/** # React-sidan deployas till GitHub Pages, aldrig via Databricks (och node_modules är hundratals MB)
     - app/**
     - docs/**
     - tests/**
