@@ -117,6 +117,6 @@ models:
       - {name: strong_events_today, data_type: bigint, description: Antal med magnitud 4.5 eller högre., }
       - {name: max_magnitude_text, data_type: string, description: Största magnituden som text, exakt som den ska stå i sammandraget., }
       - {name: max_magnitude_where, data_type: string, description: Land eller plats för det största skalvet., }
-      - {name: briefing, data_type: string, description: LLM-formulerat sammandrag på svenska., }
+      - {name: briefing, data_type: string, description: LLM-written daily summary in English., }
       - {name: llm_endpoint, data_type: string, description: Modell som användes., }
       - {name: generated_at, data_type: timestamp, description: När sammandraget genererades., }

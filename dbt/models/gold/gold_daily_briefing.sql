@@ -48,7 +48,7 @@ select
     ai_query(
         '{{ var("llm_endpoint") }}',
         concat(
-            'Write two short sentences in Swedish summarising todays global earthquake activity. ',
+            'Write two short sentences in plain, natural English summarising the global earthquake activity so far today, the way a person would say it. ',
             'Use ONLY these facts and write numbers exactly as given (use a dot as decimal separator). ',
             'Total events: ', cast(events_today as string),
             '. Events with magnitude 4.5 or higher: ', cast(strong_events_today as string),
