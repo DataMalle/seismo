@@ -1,0 +1,6 @@
+-r app/requirements.txt
+pytest>=8
+ruff>=0.6
+dbt-databricks>=1.9,<2
+pydeck
+altair

@@ -1,0 +1,18 @@
+version: 2
+
+exposures:
+  - name: seismo_dashboard
+    label: Seismo, publik Streamlit-app
+    type: dashboard
+    maturity: medium
+    url: https://seismo-malvin.streamlit.app/
+    description: Publik dashboard som läser gold-tabellerna via en service principal med enbart SELECT.
+    owner:
+      name: Malvin
+    depends_on:
+      - ref('gold_event_map')
+      - ref('gold_significant_events')
+      - ref('gold_country_summary')
+      - ref('gold_events_daily')
+      - ref('gold_daily_briefing')
+      - ref('gold_pipeline_health')

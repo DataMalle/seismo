@@ -1,0 +1,120 @@
+version: 2
+
+# Alla gold-modeller har ENFORCED kontrakt: kolumnnamn och typer verifieras vid byggtid, och constraints skapas i Delta.
+# En ändring som skulle bryta konsumenter (appen, andra team) stoppar körningen istället för att tyst spridas.
+
+models:
+  - name: gold_events_daily
+    description: Antal skalv per dag och magnitudklass (raderade händelser exkluderade).
+    config:
+      contract: {enforced: true}
+    constraints:
+      - type: primary_key
+        columns: [event_date, magnitude_bucket]
+    columns:
+      - {name: event_date, data_type: date, description: Dag (UTC)., constraints: [{type: not_null}]}
+      - name: magnitude_bucket
+        data_type: string
+        description: "Magnitudklass: <2, 2-3, 3-4, 4-5, 5+ eller unknown."
+        constraints: [{type: not_null}]
+        data_tests:
+          - accepted_values: {arguments: {values: ['<2', '2-3', '3-4', '4-5', '5+', unknown]}}
+      - {name: events, data_type: bigint, description: Antal skalv., constraints: [{type: not_null}]}
+      - {name: max_magnitude, data_type: double, description: Största magnituden., }
+      - {name: avg_depth_km, data_type: double, description: Medeldjup i km., }
+
+  - name: gold_significant_events
+    description: Skalv med magnitud 4,5 eller högre de senaste 90 dagarna, med LLM-extraherat land och antal revideringar.
+    config:
+      contract: {enforced: true}
+    constraints:
+      - type: primary_key
+        columns: [event_id]
+    columns:
+      - {name: event_id, data_type: string, description: USGS händelse-id., constraints: [{type: not_null}]}
+      - {name: event_time, data_type: timestamp, description: När skalvet inträffade (UTC)., constraints: [{type: not_null}]}
+      - name: magnitude
+        data_type: double
+        description: Magnitud.
+        constraints: [{type: not_null}]
+        data_tests:
+          - value_between: {arguments: {min_value: 4.5, max_value: 10}}
+      - {name: place, data_type: string, description: USGS platsbeskrivning., }
+      - {name: country, data_type: string, description: Land (LLM-extraherat) eller Unknown., constraints: [{type: not_null}]}
+      - {name: region, data_type: string, description: Region eller havsområde (LLM-extraherat)., }
+      - {name: depth_km, data_type: double, description: Djup i km., }
+      - {name: latitude, data_type: double, description: Latitud., }
+      - {name: longitude, data_type: double, description: Longitud., }
+      - {name: tsunami_warning, data_type: boolean, description: Sant om USGS flaggat tsunamirisk., constraints: [{type: not_null}]}
+      - {name: significance, data_type: int, description: USGS signifikansindex., }
+      - {name: felt_reports, data_type: int, description: Antal "did you feel it"-rapporter., }
+      - {name: revisions, data_type: int, description: Hur många versioner USGS publicerat., }
+      - {name: url, data_type: string, description: Länk till USGS-sidan., }
+
+  - name: gold_country_summary
+    description: Aktivitet per land de senaste 30 dagarna.
+    config:
+      contract: {enforced: true}
+    constraints:
+      - type: primary_key
+        columns: [country]
+    columns:
+      - {name: country, data_type: string, description: Land eller Unknown., constraints: [{type: not_null}]}
+      - {name: events_30d, data_type: bigint, description: Antal skalv., constraints: [{type: not_null}]}
+      - {name: max_magnitude, data_type: double, description: Största magnituden., }
+      - {name: strong_events_30d, data_type: bigint, description: Antal skalv med magnitud 4.5 eller högre., constraints: [{type: not_null}]}
+      - {name: last_event_time, data_type: timestamp, description: Senaste skalvet., }
+
+  - name: gold_event_map
+    description: Skalv de senaste 7 dagarna med koordinater, för kartan (högst 5 000 rader).
+    config:
+      contract: {enforced: true}
+    columns:
+      - {name: event_id, data_type: string, description: USGS händelse-id., constraints: [{type: not_null}]}
+      - {name: event_time, data_type: timestamp, description: När skalvet inträffade (UTC)., }
+      - {name: magnitude, data_type: double, description: Magnitud., }
+      - {name: place, data_type: string, description: USGS platsbeskrivning., }
+      - name: latitude
+        data_type: double
+        description: Latitud.
+        data_tests:
+          - value_between: {arguments: {min_value: -90, max_value: 90}}
+      - name: longitude
+        data_type: double
+        description: Longitud.
+        data_tests:
+          - value_between: {arguments: {min_value: -180, max_value: 180}}
+      - {name: depth_km, data_type: double, description: Djup i km., }
+
+  - name: gold_pipeline_health
+    description: Pipelinens hälsa som en rad. Läses av appen och av watchdog-workflowet.
+    config:
+      contract: {enforced: true}
+    columns:
+      - {name: computed_at, data_type: timestamp, description: När raden beräknades., }
+      - {name: last_poll_at, data_type: timestamp, description: Senaste lyckade eller misslyckade extraktion., }
+      - {name: last_poll_status, data_type: string, description: success eller failed., }
+      - {name: latest_event_time, data_type: timestamp, description: Tidpunkt för det senaste skalvet., }
+      - {name: latest_update_time, data_type: timestamp, description: Senaste ändring USGS gjort som vi tagit emot., }
+      - {name: events_total, data_type: bigint, description: Antal händelser (exkl. raderade)., }
+      - {name: events_deleted, data_type: bigint, description: Antal raderade händelser., }
+      - {name: updates_24h, data_type: bigint, description: Händelser som ändrats senaste dygnet., }
+      - {name: revisions_24h, data_type: bigint, description: Reviderade versioner senaste dygnet., }
+      - {name: quarantined_rows, data_type: bigint, description: Rader i karantän. Ska vara 0., }
+      - {name: llm_valid_ratio, data_type: double, description: Andel giltiga LLM-svar (0 till 1)., }
+      - {name: polls_24h, data_type: bigint, description: Antal extraktionskörningar senaste dygnet., }
+      - {name: failed_polls_24h, data_type: bigint, description: Varav misslyckade., }
+
+  - name: gold_daily_briefing
+    description: Dagligt AI-sammandrag. Siffrorna räknas i SQL och modellen formulerar dem bara.
+    config:
+      contract: {enforced: true}
+    columns:
+      - {name: briefing_date, data_type: date, description: Dag., constraints: [{type: not_null}]}
+      - {name: events_today, data_type: bigint, description: Antal skalv hittills idag., }
+      - {name: strong_events_today, data_type: bigint, description: Antal med magnitud 4.5 eller högre., }
+      - {name: max_magnitude_text, data_type: string, description: Största magnituden som text, exakt som den ska stå i sammandraget., }
+      - {name: max_magnitude_where, data_type: string, description: Land eller plats för det största skalvet., }
+      - {name: briefing, data_type: string, description: LLM-formulerat sammandrag på svenska., }
+      - {name: llm_endpoint, data_type: string, description: Modell som användes., }
+      - {name: generated_at, data_type: timestamp, description: När sammandraget genererades., }

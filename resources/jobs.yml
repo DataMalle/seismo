@@ -1,0 +1,68 @@
+resources:
+  jobs:
+    seismo_pipeline:
+      name: seismo-pipeline
+      description: >
+        USGS ändringsfeed -> landing -> bronze (Auto Loader) -> dbt (silver, gold, tester) -> AI-berikning -> freshness.
+        Körs var 30:e minut.
+      max_concurrent_runs: 1 # en körning i taget, så att watermark och MERGE aldrig tävlar
+      queue:
+        enabled: true
+      schedule:
+        quartz_cron_expression: "0 0/30 * * * ?"
+        timezone_id: UTC
+        pause_status: ${var.schedule_status}
+      parameters:
+        - {name: catalog, default: "${var.catalog}"}
+        - {name: env, default: "${var.env}"}
+        - {name: mode, default: incremental}
+        - {name: bootstrap_days, default: "7"}
+        - {name: backfill_start, default: ""}
+        - {name: backfill_end, default: ""}
+      environments:
+        - environment_key: dbt
+          spec:
+            environment_version: "3"
+            dependencies:
+              - dbt-databricks>=1.9,<2
+      tasks:
+        - task_key: poll_usgs
+          notebook_task:
+            notebook_path: ../pipeline/01_poll_usgs.py
+
+        - task_key: bronze_stream
+          depends_on: [{task_key: poll_usgs}]
+          notebook_task:
+            notebook_path: ../pipeline/02_bronze_stream.py
+
+        # Kärnan: silver, gold och alla icke-AI-tester. Misslyckas den stoppas allt efter den.
+        - task_key: dbt_core
+          depends_on: [{task_key: bronze_stream}]
+          environment_key: dbt
+          dbt_task:
+            project_directory: ../dbt
+            commands:
+              - "dbt build --exclude tag:ai --target job --vars '{env: ${var.env}}'"
+            warehouse_id: ${var.warehouse_id}
+            catalog: ${var.catalog}
+
+        # AI-stegen är isolerade: ett LLM-fel ska aldrig blockera kärndata eller färskhetskontrollen.
+        - task_key: dbt_ai
+          depends_on: [{task_key: dbt_core}]
+          environment_key: dbt
+          dbt_task:
+            project_directory: ../dbt
+            commands:
+              - "dbt build --select tag:ai --target job --vars '{env: ${var.env}}'"
+            warehouse_id: ${var.warehouse_id}
+            catalog: ${var.catalog}
+
+        - task_key: freshness
+          depends_on: [{task_key: dbt_core}]
+          environment_key: dbt
+          dbt_task:
+            project_directory: ../dbt
+            commands:
+              - "dbt source freshness --target job --vars '{env: ${var.env}}'"
+            warehouse_id: ${var.warehouse_id}
+            catalog: ${var.catalog}

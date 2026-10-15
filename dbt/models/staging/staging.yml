@@ -1,0 +1,70 @@
+version: 2
+
+models:
+  - name: stg_usgs_event_versions
+    description: >
+      Varje version av varje USGS-händelse, typad och deduplicerad (en rad per händelse och uppdateringstid).
+      Råpayloaden i bronze tolkas här med ett explicit schema (schema-on-read).
+    columns:
+      - name: event_id
+        description: USGS händelse-id.
+        data_tests: [not_null]
+      - name: updated_ms
+        description: Versionsnyckel, USGS uppdateringstid i epoch-millisekunder.
+        data_tests: [not_null]
+      - name: magnitude
+        description: Magnitud. Kan saknas för mycket nya händelser.
+        data_tests:
+          - value_between: {arguments: {min_value: -2, max_value: 10}}
+      - name: event_time
+        description: När skalvet inträffade (UTC).
+        data_tests: [not_null]
+      - name: depth_km
+        data_tests:
+          - value_between: {arguments: {min_value: -5, max_value: 800}}
+
+unit_tests:
+  - name: stg_parses_payload_into_typed_columns
+    description: Råpayloaden tolkas till rätt typer och koordinaterna hamnar i rätt kolumner.
+    model: stg_usgs_event_versions
+    given:
+      - input: source('bronze', 'usgs_events')
+        rows:
+          - event_id: ci1
+            updated_ms: 1700000000000
+            ingested_at: "2026-10-15 10:00:00"
+            source_file: f1
+            payload: >-
+              {"id":"ci1","properties":{"mag":4.6,"magType":"ml","place":"5 km SSW of Ridgecrest, CA",
+              "time":1699999999000,"updated":1700000000000,"status":"reviewed","tsunami":0,"sig":326},
+              "geometry":{"coordinates":[-117.6,35.6,8.2]}}
+    expect:
+      rows:
+        - {event_id: ci1, magnitude: 4.6, magnitude_type: ml, place: "5 km SSW of Ridgecrest, CA",
+           review_status: reviewed, longitude: -117.6, latitude: 35.6, depth_km: 8.2, significance: 326}
+
+  - name: stg_deduplicates_same_version_read_twice
+    description: Samma version som lästs in två gånger (omkörning) ger en rad.
+    model: stg_usgs_event_versions
+    given:
+      - input: source('bronze', 'usgs_events')
+        rows:
+          - {event_id: a, updated_ms: 1700000000000, ingested_at: "2026-10-15 10:00:00", source_file: f1,
+             payload: '{"id":"a","properties":{"mag":3.0,"time":1700000000000,"updated":1700000000000},"geometry":{"coordinates":[0,0,1]}}'}
+          - {event_id: a, updated_ms: 1700000000000, ingested_at: "2026-10-15 10:30:00", source_file: f2,
+             payload: '{"id":"a","properties":{"mag":3.0,"time":1700000000000,"updated":1700000000000},"geometry":{"coordinates":[0,0,1]}}'}
+    expect:
+      rows:
+        - {event_id: a, updated_ms: 1700000000000}
+
+  - name: stg_tolerates_unknown_new_fields
+    description: Ett nytt fält från USGS får inte bryta tolkningen av de fält vi känner till.
+    model: stg_usgs_event_versions
+    given:
+      - input: source('bronze', 'usgs_events')
+        rows:
+          - {event_id: b, updated_ms: 1700000000000, ingested_at: "2026-10-15 10:00:00", source_file: f1,
+             payload: '{"id":"b","properties":{"mag":5.1,"time":1700000000000,"updated":1700000000000,"brandNewField":"x"},"geometry":{"coordinates":[1,2,3]}}'}
+    expect:
+      rows:
+        - {event_id: b, magnitude: 5.1, depth_km: 3.0}

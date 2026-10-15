@@ -1,0 +1,44 @@
+bundle:
+  name: seismo
+
+include:
+  - resources/*.yml
+
+sync:
+  exclude:
+    - app/**
+    - docs/**
+    - tests/**
+    - .github/**
+    - dbt/target/**
+    - dbt/logs/**
+
+variables:
+  catalog:
+    description: Unity Catalog-katalog
+    default: workspace
+  warehouse_id:
+    description: SQL warehouse som dbt kör mot (SQL Warehouses > Connection details)
+  env:
+    description: Miljö. prod ger schemat seismo_*, andra miljöer seismo_<miljö>_*
+    default: prod
+  schedule_status:
+    description: PAUSED eller UNPAUSED. Dev-miljön körs bara manuellt.
+    default: UNPAUSED
+
+targets:
+  prod:
+    default: true
+    mode: production
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+
+  dev:
+    # Egna scheman (seismo_dev_*) och pausat schema, så att utveckling aldrig rör produktionsdata.
+    variables:
+      env: dev
+      schedule_status: PAUSED
+    presets:
+      name_prefix: "[dev] "
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}

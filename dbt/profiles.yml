@@ -1,0 +1,27 @@
+# Tre sätt att ansluta, alla utan hemligheter i repot:
+#   dev / prod : OAuth M2M (service principal) via miljövariabler. Används lokalt och i CI.
+#   job        : körs som dbt-task i Databricks Jobs, som själv sätter DBT_HOST, DBT_HTTP_PATH och DBT_ACCESS_TOKEN.
+seismo:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    dev: &oauth
+      type: databricks
+      catalog: "{{ env_var('DBT_CATALOG', 'workspace') }}"
+      schema: seismo_dev_silver # standardschema. Modellernas schema styrs av macros/schema.sql
+      host: "{{ env_var('DATABRICKS_HOST', 'example.cloud.databricks.com') | replace('https://', '') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH', '/sql/1.0/warehouses/dummy') }}"
+      auth_type: oauth
+      client_id: "{{ env_var('DATABRICKS_CLIENT_ID', 'dummy') }}"
+      client_secret: "{{ env_var('DATABRICKS_CLIENT_SECRET', 'dummy') }}"
+      threads: 4
+    prod:
+      <<: *oauth
+      schema: seismo_silver
+    job:
+      type: databricks
+      catalog: "{{ env_var('DBT_CATALOG', 'workspace') }}"
+      schema: seismo_silver
+      host: "{{ env_var('DBT_HOST', 'example.cloud.databricks.com') }}"
+      http_path: "{{ env_var('DBT_HTTP_PATH', '/sql/1.0/warehouses/dummy') }}"
+      token: "{{ env_var('DBT_ACCESS_TOKEN', 'dummy') }}"
+      threads: 4
