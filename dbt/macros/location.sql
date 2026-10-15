@@ -22,3 +22,19 @@
         else '5+'
     end
 {%- endmacro %}
+
+{#- Giltigt LLM-svar: platstypen är en av de tillåtna och minst ett av land/region finns. Land krävs *inte* för hav och
+    regioner (Mid-Atlantic Ridge har inget land), men ett svar utan både land och region säger ingenting. -#}
+{% macro is_valid_location(country, country_code, region, location_type) -%}
+    coalesce(
+        {{ location_type }} in ('city', 'region', 'ocean', 'unknown')
+        and ({{ country }} is not null or {{ region }} is not null)
+        and ({{ country_code }} is null or length({{ country_code }}) = 2),
+        false
+    )
+{%- endmacro %}
+
+{#- Etikett för gold: land, annars Ocean för hav, annars Unknown. -#}
+{% macro country_label(country, location_type) -%}
+    coalesce({{ country }}, case when {{ location_type }} = 'ocean' then 'Ocean' else 'Unknown' end)
+{%- endmacro %}

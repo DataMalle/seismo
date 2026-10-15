@@ -1,5 +1,5 @@
 select
-    coalesce(l.country, 'Unknown')                       as country,
+    {{ country_label('l.country', 'l.location_type') }} as country,
     count(*)                                             as events_30d,
     max(e.magnitude)                                     as max_magnitude,
     count_if(e.magnitude >= 4.5)                         as strong_events_30d,

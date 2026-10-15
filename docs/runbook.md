@@ -76,7 +76,7 @@ om alla filer vid nästa körning. Rader utan `id`/`updated` hamnar i `usgs_even
 
 ## Kostnadskontroll
 
-- **LLM:** `llm_batch_size` (standard 100) i `dbt_project.yml` begränsar nya anrop per körning.
+- **LLM:** `llm_batch_size` (standard 300) i `dbt_project.yml` begränsar nya anrop per körning.
 - **Paus:** sätt `schedule_status=PAUSED` och kör `databricks bundle deploy`, eller pausa jobbet i Databricks.
 - **Compute:** hela pipelinen går på serverless. Se `docs/cost-and-performance.md` för mätta siffror och kostnadsuppskattning.
 

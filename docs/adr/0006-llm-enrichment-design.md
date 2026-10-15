@@ -12,9 +12,10 @@ ogiltiga svar och ska inte köras om i onödan.
    får bara den tvetydiga delen: orten (`Ridgecrest, CA`).
 2. **Cache per ort.** Resultatet sparas i `event_locations` med ort som nyckel. Samma ort frågas aldrig två gånger, och orter är
    få jämfört med antalet händelser.
-3. **Kostnadstak.** Högst `llm_batch_size` (100) nya orter per körning. Ett backlog tas ikapp över flera körningar.
-4. **Validering.** Svaret måste vara tolkbar JSON, `location_type` måste vara ett av fyra tillåtna värden och landskoden måste
-   vara två tecken. Annars sparas raden med `is_valid = false` och försöks om först efter ett dygn. `gold`-modellerna använder bara giltiga rader.
+3. **Kostnadstak.** Högst `llm_batch_size` (300) nya orter per körning. Ett backlog tas ikapp över flera körningar. I stabilt läge är nya orter få, så taket styr bara kostnaden i värsta fall.
+4. **Validering.** Svaret måste vara tolkbar JSON, `location_type` måste vara ett av fyra tillåtna värden, landskoden måste
+   vara två tecken och minst ett av land och region måste finnas. Land krävs *inte* för hav och regioner: min första regel krävde
+   land och avvisade därför korrekta svar för Mid-Atlantic Ridge, vilket syntes först i produktion. Annars sparas raden med `is_valid = false` och försöks om först efter ett dygn. `gold`-modellerna använder bara giltiga rader.
 5. **Isolering.** AI-modellerna har taggen `ai` och körs som sista kommandot i dbt-tasken, *efter* kärnbygget och freshness. Ett LLM-fel kan
    därför aldrig blockera kärndata, som redan är publicerad. En hook skapar en tom `event_locations` om den saknas, så att gold alltid kan joina mot den.
    (Jag körde först AI-stegen som en egen task, men varje dbt-task betalar en egen miljöstart på minuter, så de delar nu task.)

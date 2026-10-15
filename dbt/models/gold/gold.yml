@@ -40,7 +40,7 @@ models:
         data_tests:
           - value_between: {arguments: {min_value: 4.5, max_value: 10}}
       - {name: place, data_type: string, description: USGS platsbeskrivning., }
-      - {name: country, data_type: string, description: Land (LLM-extraherat) eller Unknown., constraints: [{type: not_null}]}
+      - {name: country, data_type: string, description: Land (LLM-extraherat), Ocean för öppet hav eller Unknown., constraints: [{type: not_null}]}
       - {name: region, data_type: string, description: Region eller havsområde (LLM-extraherat)., }
       - {name: depth_km, data_type: double, description: Djup i km., }
       - {name: latitude, data_type: double, description: Latitud., }
@@ -59,7 +59,7 @@ models:
       - type: primary_key
         columns: [country]
     columns:
-      - {name: country, data_type: string, description: Land eller Unknown., constraints: [{type: not_null}]}
+      - {name: country, data_type: string, description: Land, Ocean för öppet hav eller Unknown., constraints: [{type: not_null}]}
       - {name: events_30d, data_type: bigint, description: Antal skalv., constraints: [{type: not_null}]}
       - {name: max_magnitude, data_type: double, description: Största magnituden., }
       - {name: strong_events_30d, data_type: bigint, description: Antal skalv med magnitud 4.5 eller högre., constraints: [{type: not_null}]}

@@ -11,7 +11,7 @@ clean-targets: ["target", "dbt_packages"]
 vars:
   env: "{{ target.name }}" # prod -> schemat seismo_*, annars seismo_<env>_*. Se macros/schema.sql
   llm_endpoint: databricks-meta-llama-3-3-70b-instruct
-  llm_batch_size: 100 # högst så många nya platsbeskrivningar per körning (kostnadstak)
+  llm_batch_size: 300 # högst så många nya platsbeskrivningar per körning (kostnadstak). I stabilt läge är nya orter få
   prompt_version: v1
 
 on-run-start:

@@ -67,12 +67,7 @@ select
     x.country_code                              as country_code,
     x.region                                    as region,
     x.location_type                             as location_type,
-    coalesce(
-        x.country is not null
-        and x.location_type in ('city', 'region', 'ocean', 'unknown')
-        and (x.country_code is null or length(x.country_code) = 2),
-        false
-    )                                           as is_valid,
+    {{ is_valid_location('x.country', 'x.country_code', 'x.region', 'x.location_type') }} as is_valid,
     raw_response,
     '{{ var("llm_endpoint") }}'                 as llm_endpoint,
     '{{ var("prompt_version") }}'               as prompt_version,

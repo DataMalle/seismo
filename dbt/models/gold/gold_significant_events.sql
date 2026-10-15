@@ -3,7 +3,7 @@ select
     e.event_time,
     e.magnitude,
     e.place,
-    coalesce(l.country, 'Unknown')   as country,
+    {{ country_label('l.country', 'l.location_type') }} as country,
     l.region                         as region,
     e.depth_km,
     e.latitude,
