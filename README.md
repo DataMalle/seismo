@@ -70,7 +70,8 @@ alla dokumenterade i ADR:erna:
 - **Databricks ignorerar min `profiles.yml`** och genererar en egen dbt-profil. Jag byggde om till den och tog bort mitt oanvända target.
 - **Varje dbt-task betalar en egen miljöstart.** Freshness-kommandot tog 3 sekunder men tasken 3,8 minuter, så de delar nu task: körtiden gick från över 7 till under 4 minuter.
 - **Min LLM-validering avvisade korrekta svar.** Hav har inget land, så "Mid-Atlantic Ridge" blev ogiltigt. Det syntes först när jag läste de råa svaren i produktion.
-- **Warehouse-vakentiden, inte datamängden, styr kostnaden:** ca 86 % med timschema och 10 minuters auto-stop. Auto-stop på 1 minut sänker månadskostnaden med ca 63 %.
+- **Warehouse-vakentiden, inte datamängden, styr kostnaden:** ca 92 % med timschema och 10 minuters auto-stop. Auto-stop på 1 minut sänker månadskostnaden med ca 66 %.
+  Min första kalkyl överskattade dessutom jobbkostnaden med 1,8 gånger tills jag jämförde den mot Seismos egna fakturaposter.
 
 ## Kör själv
 

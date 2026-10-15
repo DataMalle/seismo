@@ -11,11 +11,11 @@ samma körning skulle kosta på en betald plan (AWS, region us-east-2, listpris)
 
 | Fråga | Svar |
 |---|---|
-| Vad dominerar kostnaden? | **SQL-warehousens vakentid**, inte datamängd eller lagring. Med timschema och 10 minuters auto-stop är warehouse vaket ca 12 av 60 minuter. |
+| Vad dominerar kostnaden? | **SQL-warehousens vakentid**, inte datamängd, lagring eller jobbcompute. Med timschema och 10 minuters auto-stop är warehouse vaket ca 12 av 60 minuter och står för ca 92 % av kostnaden. |
 | Hur stort är datat? | Ca 0,5 MB i tabeller och 1,4 MB landing efter en vecka (ca 2 000 händelser). Lagring är försumbar. |
 | Bästa tabelllayout? | **Liquid clustering.** ca 50 % snabbare tidsfrågor än ingen layout, och inga av partitioneringens nackdelar. |
 | Småfilsproblemet? | Hanteras mest automatiskt av Predictive Optimization. 300 micro-batchar gav 21 filer, och `OPTIMIZE` gav 1 fil och 60 % mindre lagring. |
-| Viktigaste kostnadsspaken? | Auto-stop på warehouse (10 till 1 minut) ger ca 63 % lägre månadskostnad vid timschema. Frekvens är den näst största. |
+| Viktigaste kostnadsspaken? | Auto-stop på warehouse (10 till 1 minut) ger ca 66 % lägre månadskostnad vid timschema. Frekvens är den näst största. |
 
 ## 1. Datamängd
 
@@ -104,33 +104,35 @@ Två optimeringar kom ur mätningarna:
 | Serverless jobbcompute | 0,35 USD per DBU | `system.billing.list_prices` |
 | Serverless SQL | 0,70 USD per DBU | `system.billing.list_prices` |
 | Foundation Model-inferens | 0,07 USD per DBU | `system.billing.list_prices` |
-| Förbrukning, serverless jobb under körning | **ca 4,2 DBU per timme** | härledd ur `system.billing.usage` (10-minutersposter på 0,69 till 0,73 DBU) |
+| Förbrukning, **notebook-tasks** (Spark, `poll_usgs` och `bronze_stream`) | **ca 6,5 DBU per timme** | Seismos egna fakturaposter: 0,133 DBU för 1,2 min och 0,126 DBU för 0,9 min notebook-tid plus dbt |
+| Förbrukning, **dbt-tasks** på jobbcompute | **ca 0,6 DBU per timme** (nästan inget) | Seismos egna poster: 0,023 till 0,038 DBU för 2,1 till 2,9 min. dbt-tasken orkestrerar bara, arbetet sker på warehouse |
 | Förbrukning, SQL warehouse (2X-Small) när den är vaken | **4 DBU per timme** | antagande enligt Databricks storlekstabell, konsistent med mätta timposter på 0,5 till 0,75 DBU (=ca 8 till 11 minuters vakentid) |
 | Warehouse auto-stop | 10 minuter | `databricks warehouses get` |
 | Aktiv dbt-tid per körning | ca 2,4 min | jobbloggar (98 s + 3 s + 42 s) |
-| Jobbcompute per körning | ca 3,8 min | summa av task-tider |
+| Notebook-tid per körning | ca 0,9 till 1,2 min | task-tider (`poll_usgs` plus `bronze_stream`) |
+| dbt-tid per körning | ca 2,9 min | task-tid |
 
 ### Per körning
 
-- Jobbcompute: 3,8 min × 4,2 DBU/h = **0,27 DBU** (0,09 USD).
+- Jobbcompute: notebooks ca 1,0 min × 6,5 DBU/h = 0,11 DBU, dbt ca 2,9 min × 0,6 DBU/h = 0,03 DBU. Totalt ca **0,15 DBU** (0,05 USD).
 - Warehouse: aktiv 2,4 min plus **auto-stop-svansen** (warehouse väntar 10 minuter på nästa fråga innan den stängs av).
 
 ### Scenarier (USD, listpris, per dygn och per månad)
 
 | Scenario | Körningar/dygn | Warehouse vaken/dygn | USD/dygn | USD/månad |
 |---|---|---|---|---|
-| **A. Nuvarande: varje timme, auto-stop 10 min** | 24 | 5,0 h | ca 16 | **ca 480** |
-| B. Varje timme, **auto-stop 1 min** | 24 | 1,4 h | ca 6,0 | **ca 180** |
-| C. Var fjärde timme, auto-stop 10 min | 6 | 1,2 h | ca 4,0 | ca 120 |
-| D. Var fjärde timme, auto-stop 1 min | 6 | 0,3 h | ca 1,5 | ca 45 |
-| E. **Var 15:e minut**, auto-stop 10 min | 96 | 24 h (aldrig av) | ca 76 | ca 2 300 |
+| **A. Nuvarande: varje timme, auto-stop 10 min** | 24 | 5,0 h | ca 15 | **ca 455** |
+| B. Varje timme, **auto-stop 1 min** | 24 | 1,4 h | ca 5,1 | **ca 150** |
+| C. Var fjärde timme, auto-stop 10 min | 6 | 1,2 h | ca 3,8 | ca 115 |
+| D. Var fjärde timme, auto-stop 1 min | 6 | 0,3 h | ca 1,3 | ca 40 |
+| E. **Var 15:e minut**, auto-stop 10 min | 96 | 24 h (aldrig av) | ca 72 | ca 2 170 |
 
-Beräkning: `körningar × 0,27 DBU × 0,35` plus `vaken timmar × 4 DBU × 0,70`. LLM-inferensen är försumbar (se nedan) och lagring ännu mer.
+Beräkning: `körningar × 0,15 DBU × 0,35` plus `vaken timmar × 4 DBU × 0,70`. LLM-inferensen är försumbar (se nedan) och lagring ännu mer.
 
 **Vad det visar:**
-1. **Warehouse-tiden dominerar.** I scenario A står warehouse för ca 86 % av kostnaden, trots att den bara arbetar ca 2,4 minuter per körning. Resten är
-   väntan på auto-stop.
-2. **Auto-stop är den billigaste spaken:** 10 till 1 minut sänker kostnaden med ca 63 % utan att ändra något annat. Priset är en något
+1. **Warehouse-tiden dominerar.** I scenario A står warehouse för ca 92 % av kostnaden, trots att den bara arbetar ca 2,4 minuter per körning. Resten är
+   väntan på auto-stop. Jobbcompute är nästan en avrundningsfråga.
+2. **Auto-stop är den billigaste spaken:** 10 till 1 minut sänker kostnaden med ca 66 % utan att ändra något annat. Priset är en något
    längre kallstart för dashboarden (ca 30 till 60 s för första besökaren), som appen hanterar med förvärmning.
 3. **Frekvens är en kostnadsbeslut, inte en teknisk detalj.** Med körningar tätare än auto-stop (scenario E) sover warehouse aldrig, och kostnaden blir
    ca fem gånger högre än A, för data som i värsta fall är 45 minuter färskare. USGS-data ändras sällan så snabbt att det motiverar det.
@@ -144,18 +146,25 @@ Beräkning: `körningar × 0,27 DBU × 0,35` plus `vaken timmar × 4 DBU × 0,70
   (S3 standard, ca 0,023 USD per GB och månad).
 - **Datatrafik ut:** noll i förbrukningstabellerna (`INTERNET_EGRESS`).
 
-### Validering mot Seismos egen fakturering
+### Validering mot Seismos egna fakturaposter
 
-Förbrukningstabellerna släpar ca 2 timmar, så Seismos poster fanns inte med när jag skrev det här. Kalkylen ovan bygger på mätta takter från andra
-jobb i samma workspace. Så här verifierar du den mot Seismos egna poster:
+Förbrukningstabellerna släpar ca 2 timmar, så prod-körningarna syns inte än när jag skriver det här. Men Seismos **dev-jobb** hade åtta körningar
+bokförda (0,76 DBU totalt), och de användes för att validera kalkylen. Det **ändrade den**: min första kalkyl antog 4,2 DBU/timme för all
+task-tid (en takt jag härlett ur ett annat projekts jobb) och överskattade jobbkostnaden med ca 1,8 gånger. De riktiga posterna visade att
+notebook-tasks kostar ca 6,5 DBU/timme medan dbt-tasks är nästan gratis på jobbcompute (ca 0,6 DBU/timme), eftersom de bara orkestrerar.
+Kalkylen ovan bygger på de riktiga takterna. Slutsatsen blev dessutom starkare: warehouse står för ca 92 % av kostnaden, inte 86 %.
+
+Så här verifierar du kalkylen mot Seismos prod-poster när de dykt upp:
 
 ```sql
-SELECT usage_date, sku_name, ROUND(SUM(usage_quantity), 2) AS dbus
+SELECT usage_metadata.job_run_id, ROUND(SUM(usage_quantity), 3) AS dbus
 FROM system.billing.usage
-WHERE usage_metadata.job_id = <seismo-pipeline job id>   -- jobbcompute
-   OR usage_metadata.warehouse_id = '<warehouse id>'      -- warehouse (delas med andra projekt)
-GROUP BY 1, 2 ORDER BY 1 DESC;
+WHERE usage_metadata.job_id = <seismo-pipeline job id>
+GROUP BY 1 ORDER BY MIN(usage_start_time) DESC;
 ```
+
+Warehouse-delen går inte att attribuera per jobb (warehouse delas med andra projekt), så den bygger på den dokumenterade storleken
+och mätta timposter. Det är den mest osäkra delen av kalkylen.
 
 ## 6. Vad jag skulle göra annorlunda i produktion
 
