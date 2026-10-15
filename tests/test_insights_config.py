@@ -4,7 +4,16 @@ import pandas as pd
 import pytest
 
 from config import ConfigError, load_settings
-from insights import depth_color, humanize_minutes, last_24h, marker_radius_m, minutes_since, sla_status
+from insights import (
+    DEPTH_BANDS,
+    depth_color,
+    depth_legend_html,
+    humanize_minutes,
+    last_24h,
+    marker_radius_m,
+    minutes_since,
+    sla_status,
+)
 
 NOW = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
 
@@ -56,3 +65,19 @@ def test_settings_defaults_and_missing():
     assert s.gold == "workspace.seismo_gold"
     with pytest.raises(ConfigError):
         load_settings({})
+
+
+def test_legend_colors_are_exactly_the_marker_colors():
+    """Legenden och kartmarkörerna ska aldrig kunna glida isär: båda läser DEPTH_BANDS."""
+    html = depth_legend_html()
+    for _, _, _, (r, g, b) in DEPTH_BANDS:
+        assert f"rgb({r},{g},{b})" in html
+    for depth in (10, 150, 500):
+        assert tuple(depth_color(depth)[:3]) in {rgb for *_, rgb in DEPTH_BANDS}
+
+
+def test_every_depth_maps_to_a_band_including_boundaries():
+    assert depth_color(69.9)[:3] == list(DEPTH_BANDS[0][3])
+    assert depth_color(70)[:3] == list(DEPTH_BANDS[1][3])
+    assert depth_color(299.9)[:3] == list(DEPTH_BANDS[1][3])
+    assert depth_color(300)[:3] == list(DEPTH_BANDS[2][3])

@@ -47,12 +47,30 @@ def marker_radius_m(magnitude: float) -> float:
     return 2500 * 1.9 ** max(magnitude, 0)
 
 
+# En enda källa för djupfärgerna: kartans markörer och legenden under den läser båda härifrån.
+DEPTH_BANDS = (
+    ("grunda", "<70 km", 70, (209, 14, 97)),
+    ("mellan", "70–300 km", 300, (230, 140, 40)),
+    ("djupa", ">300 km", None, (21, 123, 147)),
+)
+UNKNOWN_DEPTH_RGB = (122, 122, 122)
+MARKER_ALPHA = 170
+
+
 def depth_color(depth_km: float | None) -> list[int]:
-    """Grund (röd/magenta) till djup (teal). Grunda skalv är oftast de farligaste."""
+    """RGBA-färg efter djup: grunda skalv (oftast de farligaste) magenta, mellan orange och djupa teal."""
     if depth_km is None or pd.isna(depth_km):
-        return [122, 122, 122, 150]
-    if depth_km < 70:
-        return [209, 14, 97, 170]
-    if depth_km < 300:
-        return [230, 140, 40, 170]
-    return [21, 123, 147, 170]
+        return [*UNKNOWN_DEPTH_RGB, 150]
+    for _, _, upper, rgb in DEPTH_BANDS:
+        if upper is None or depth_km < upper:
+            return [*rgb, MARKER_ALPHA]
+    return [*DEPTH_BANDS[-1][3], MARKER_ALPHA]  # onåbart, men håller funktionen total
+
+
+def depth_legend_html() -> str:
+    """Legend med samma RGB-värden som markörerna, så att färgerna alltid stämmer överens."""
+    items = [
+        f'<span style="color: rgb({r},{g},{b}); font-size: 1.1em;">●</span> {label} ({span})'
+        for label, span, _, (r, g, b) in DEPTH_BANDS
+    ]
+    return '<div style="color: #7a7a7a; font-size: 0.85rem;">' + "&nbsp;&nbsp;&nbsp;".join(items) + "</div>"

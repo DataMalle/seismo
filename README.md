@@ -1,6 +1,6 @@
 # Seismo – Malvin Portfolio Project
 
-**Live demo:** _(länk läggs till efter deploy)_
+**Live demo:** https://seismo-malvin.streamlit.app/
 
 En live lakehouse-plattform över **globala jordbävningar från USGS**: ändringsflöde (CDC) med revideringar och raderingar,
 strömmande ingest, dbt med datakontrakt, en AI-berikning som är byggd för kostnad och tillförlitlighet, schemalagd drift med

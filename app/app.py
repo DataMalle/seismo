@@ -12,7 +12,15 @@ import streamlit as st
 from databricks.sdk import WorkspaceClient
 
 from config import ConfigError, Settings, load_settings
-from insights import depth_color, humanize_minutes, last_24h, marker_radius_m, minutes_since, sla_status
+from insights import (
+    depth_color,
+    depth_legend_html,
+    humanize_minutes,
+    last_24h,
+    marker_radius_m,
+    minutes_since,
+    sla_status,
+)
 from style import TEAL, hero, inject_style
 from warehouse import Warehouse
 
@@ -105,7 +113,7 @@ def tab_map(events: pd.DataFrame) -> None:
         ),
         height=520,
     )
-    st.caption("🟣 grunda (<70 km)   🟠 mellan (70–300 km)   🔵 djupa (>300 km)")
+    st.markdown(depth_legend_html(), unsafe_allow_html=True)
 
 
 def tab_significant(significant: pd.DataFrame, countries: pd.DataFrame, briefing: pd.DataFrame) -> None:
