@@ -19,6 +19,8 @@ resources:
         - {name: bootstrap_days, default: "7"}
         - {name: backfill_start, default: ""}
         - {name: backfill_end, default: ""}
+        - {name: snapshot_repo, default: DataMalle/seismo}
+        - {name: snapshot_branch, default: "${var.snapshot_branch}"}
       environments:
         - environment_key: dbt
           spec:
@@ -53,3 +55,10 @@ resources:
               - "dbt build --select tag:ai --target databricks_cluster --vars '{env: ${var.env}}'"
             warehouse_id: ${var.warehouse_id}
             catalog: ${var.catalog}
+
+        # Publicerar gold som JSON till React-sidan. Körs bara om dbt lyckats, så ett trasigt bygge publiceras aldrig.
+        # Läser med Spark på jobbcompute och väcker därför inte warehouse en andra gång per timme.
+        - task_key: publish
+          depends_on: [{task_key: dbt}]
+          notebook_task:
+            notebook_path: ../pipeline/03_publish_snapshots.py

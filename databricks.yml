@@ -25,6 +25,9 @@ variables:
   schedule_status:
     description: PAUSED eller UNPAUSED. Dev-miljön körs bara manuellt.
     default: UNPAUSED
+  snapshot_branch:
+    description: GitHub-gren som snapshots publiceras till. Dev använder en egen gren så att den aldrig rör produktionsdata.
+    default: data
 
 targets:
   prod:
@@ -38,6 +41,7 @@ targets:
     variables:
       env: dev
       schedule_status: PAUSED
+      snapshot_branch: data-dev
     presets:
       name_prefix: "[dev] "
     workspace:
