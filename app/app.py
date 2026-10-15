@@ -188,11 +188,16 @@ def tab_platform(health: pd.DataFrame) -> None:
         st.info("Ingen hälsodata ännu.")
         return
     h = health.iloc[0]
-    minutes = minutes_since(h["last_poll_at"])
+    minutes = minutes_since(h["last_success_at"])
     status = sla_status(minutes)
     label = {"ok": "✅ Inom SLA", "warn": "⚠️ Nära SLA-gränsen", "breach": "🔴 SLA bruten"}[status]
+    if h["last_poll_status"] != "success":
+        st.info(
+            "Senaste försöket att hämta data misslyckades (t.ex. ett kort avbrott hos USGS). "
+            "Nästa körning tar igen luckan automatiskt."
+        )
     a, b, c, d = st.columns(4)
-    a.metric("Senaste körning", humanize_minutes(minutes))
+    a.metric("Senaste lyckade körning", humanize_minutes(minutes))
     b.metric("Färskhets-SLA (150 min)", label)
     c.metric("Ändrade händelser, 24 h", f"{int(h['updates_24h']):,}".replace(",", " "))
     d.metric("Revideringar, 24 h", f"{int(h['revisions_24h']):,}".replace(",", " "))
@@ -244,7 +249,7 @@ def main() -> None:
             countries = gold("gold_country_summary", "events_30d DESC")
             daily = utc(gold("gold_events_daily", "event_date"), "event_date")
             briefing = gold("gold_daily_briefing", "briefing_date DESC", 1)
-            health = utc(gold("gold_pipeline_health"), "last_poll_at")
+            health = utc(gold("gold_pipeline_health"), "last_poll_at", "last_success_at")
     except Exception as e:
         log.exception("Datahämtning misslyckades")
         st.error("Kunde inte hämta data just nu.")
@@ -257,7 +262,7 @@ def main() -> None:
 
     recent = last_24h(events)
     strongest = events.loc[events["magnitude"].idxmax()] if not events.empty else None
-    poll_minutes = minutes_since(health.iloc[0]["last_poll_at"]) if not health.empty else None
+    poll_minutes = minutes_since(health.iloc[0]["last_success_at"]) if not health.empty else None
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Skalv, senaste 24 h", f"{len(recent):,}".replace(",", " "))
     c2.metric("Starkaste, 7 dagar", "–" if strongest is None else f"M {strongest['magnitude']:.1f}")

@@ -37,7 +37,7 @@ Kolumnnamn, typer och beskrivningar finns i `gold.yml` och i Unity Catalog.
 | Raderade händelser ingår aldrig | Filtret `not is_deleted` i varje gold-modell |
 | Land kommer bara från validerade LLM-svar | Join på `event_locations.is_valid`, annars `Unknown` |
 | Ett LLM-fel ändrar inte kärndata | AI-modellerna körs som sista dbt-kommandot, efter att kärndata publicerats, och hooken skapar `event_locations` om den saknas |
-| Färskhet: senaste körning är inte äldre än 150 minuter | Source freshness (dbt) och watchdog-workflowet (GitHub-issue) |
+| Färskhet: senaste *lyckade* körning är inte äldre än 150 minuter | Source freshness (dbt) och watchdog-workflowet (GitHub-issue) |
 
 ## Vad som *inte* garanteras
 

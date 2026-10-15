@@ -16,8 +16,9 @@ AI-stegen. Kärndata är därför publicerad innan AI-steget körs, och ett LLM-
 
 ## Larm: "Datafärskhet: SLA bruten"
 
-Watchdog öppnar ett GitHub-issue med etiketten `data-sla` när senaste körning är äldre än 150 minuter, senaste körning
-misslyckades eller karantäntabellen innehåller rader. Issuet stängs automatiskt när pipelinen är frisk igen.
+Watchdog öppnar ett GitHub-issue med etiketten `data-sla` när den senaste *lyckade* körningen är äldre än 150 minuter (två missade
+timkörningar) eller karantäntabellen innehåller rader. Ett enstaka misslyckat försök larmar inte: det beror oftast på ett kort avbrott hos
+USGS (502/504), extraktionen försöker själv om (tre försök med tre minuters paus), och nästa körning tar igen luckan. Issuet stängs automatiskt när pipelinen är frisk igen.
 
 **1. Hitta var det stannade.** Öppna jobbet i Databricks (Workflows → `seismo-pipeline`) och se vilken task som misslyckades. Eller fråga loggen:
 

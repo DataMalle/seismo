@@ -11,7 +11,7 @@ dygnet runt utan kostnad, och en Dagster- eller Airflow-instans kräver en värd
   Jobbet har `max_concurrent_runs: 1` och kö, så att watermark och `MERGE` aldrig tävlar.
 - **CI:** GitHub Actions kör lint, enhetstester och `dbt parse --warn-error` på varje push och PR.
 - **Larm:** ett *separat* watchdog-workflow läser `gold_pipeline_health` och öppnar ett GitHub-issue när färskhets-SLA:n (150 min, två missade körningar)
-  bryts. Det stänger issuet när pipelinen är frisk igen.
+  bryts. SLA:n mäts på senaste *lyckade* körning, så att ett enstaka USGS-fel (jag fick en 502 i produktion) inte öppnar ett issue som stänger sig självt. Det stänger issuet när pipelinen är frisk igen.
 
 ## Varför larmet ligger utanför jobbet
 En pipeline som stannat kan inte larma om sig själv. Watchdog-workflowet körs av en annan scheduler på en annan plattform och

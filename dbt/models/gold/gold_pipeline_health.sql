@@ -19,6 +19,7 @@ select
     current_timestamp()                                                                 as computed_at,
     (select polled_at from last_poll)                                                   as last_poll_at,
     (select status from last_poll)                                                      as last_poll_status,
+    (select max(polled_at) from {{ source('ops', 'poll_log') }} where status = 'success') as last_success_at,
     (select max(event_time) from {{ ref('events') }})                                   as latest_event_time,
     (select max(updated_at) from {{ ref('events') }})                                   as latest_update_time,
     (select count(*) from {{ ref('events') }} where not is_deleted)                     as events_total,

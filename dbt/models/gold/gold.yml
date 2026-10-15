@@ -94,6 +94,8 @@ models:
       - {name: computed_at, data_type: timestamp, description: När raden beräknades., }
       - {name: last_poll_at, data_type: timestamp, description: Senaste lyckade eller misslyckade extraktion., }
       - {name: last_poll_status, data_type: string, description: success eller failed., }
+      - {name: last_success_at, data_type: timestamp, description: Senaste lyckade extraktion. SLA mäts på den så att ett enstaka USGS-fel inte larmar., }
+      - {name: last_success_at, data_type: timestamp, description: Senaste lyckade extraktion. SLA mäts på den, så att ett enstaka USGS-fel inte larmar., }
       - {name: latest_event_time, data_type: timestamp, description: Tidpunkt för det senaste skalvet., }
       - {name: latest_update_time, data_type: timestamp, description: Senaste ändring USGS gjort som vi tagit emot., }
       - {name: events_total, data_type: bigint, description: Antal händelser (exkl. raderade)., }

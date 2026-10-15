@@ -151,3 +151,61 @@ def test_deleted_only_window_keeps_only_deleted_features():
     kept = feat("kept", 1) | {"properties": {"updated": 1, "status": "reviewed"}}
     out = lib.fetch_window(window, fetch=lambda url: {"features": [kept, gone]})
     assert [f["id"] for f in out] == ["gone"]
+
+
+class _Response:
+    def __init__(self, body: bytes):
+        self._body = body
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _http_error(code: int):
+    import urllib.error
+
+    return urllib.error.HTTPError("http://x", code, "err", {}, None)
+
+
+def test_fetch_json_survives_a_short_usgs_outage_with_backoff(monkeypatch):
+    sleeps, calls = [], {"n": 0}
+
+    def fake_urlopen(req, timeout):
+        calls["n"] += 1
+        if calls["n"] <= 3:
+            raise _http_error(502)
+        return _Response(b'{"features": [1]}')
+
+    monkeypatch.setattr(lib.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(lib.time, "sleep", sleeps.append)
+    assert lib.fetch_json("http://x") == {"features": [1]}
+    assert sleeps == [2, 4, 8]  # exponentiell backoff, ingen väntan efter lyckat försök
+
+
+def test_fetch_json_gives_up_after_five_attempts_without_a_pointless_final_sleep(monkeypatch):
+    sleeps = []
+
+    def always_502(req, timeout):
+        raise _http_error(502)
+
+    monkeypatch.setattr(lib.urllib.request, "urlopen", always_502)
+    monkeypatch.setattr(lib.time, "sleep", sleeps.append)
+    with pytest.raises(RuntimeError, match="502"):
+        lib.fetch_json("http://x")
+    assert sleeps == [2, 4, 8, 16]
+
+
+def test_fetch_json_treats_204_and_empty_body_as_no_results(monkeypatch):
+    def no_content(req, timeout):
+        raise _http_error(204)
+
+    monkeypatch.setattr(lib.urllib.request, "urlopen", no_content)
+    assert lib.fetch_json("http://x") == {"features": []}
+    monkeypatch.setattr(lib.urllib.request, "urlopen", lambda req, timeout: _Response(b""))
+    assert lib.fetch_json("http://x") == {"features": []}

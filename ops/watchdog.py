@@ -17,27 +17,35 @@ DEFAULT_SLA_MINUTES = 150  # två missade timkörningar plus marginal
 @dataclass(frozen=True)
 class Verdict:
     ok: bool
-    minutes_since_poll: float | None
+    minutes_since_success: float | None
     last_poll_status: str | None
     reasons: list[str]
 
 
+def _as_utc(value) -> datetime:
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
 def evaluate(health: dict | None, now: datetime, sla_minutes: int = DEFAULT_SLA_MINUTES) -> Verdict:
-    """Ren funktion över en rad ur gold_pipeline_health, så att SLA-logiken går att enhetstesta."""
-    if not health or not health.get("last_poll_at"):
-        return Verdict(False, None, None, ["Ingen pipelinekörning registrerad"])
-    last_poll = health["last_poll_at"]
-    if isinstance(last_poll, str):
-        last_poll = datetime.fromisoformat(last_poll.replace("Z", "+00:00"))
-    if last_poll.tzinfo is None:
-        last_poll = last_poll.replace(tzinfo=UTC)
-    minutes = (now - last_poll).total_seconds() / 60
+    """Ren funktion över en rad ur gold_pipeline_health, så att SLA-logiken går att enhetstesta.
+
+    SLA mäts på senaste *lyckade* körning. Ett enstaka misslyckat försök (t.ex. ett kort USGS-avbrott med 502)
+    larmar alltså inte: nästa körning tar igen luckan. Larmet går först när lyckade körningar uteblivit så länge
+    att SLA:n är bruten (två missade timmar).
+    """
+    health = health or {}
+    success_at = health.get("last_success_at") or health.get("last_poll_at")
+    if not success_at:
+        return Verdict(False, None, None, ["Ingen lyckad pipelinekörning registrerad"])
+    minutes = (now - _as_utc(success_at)).total_seconds() / 60
     status = health.get("last_poll_status")
     reasons = []
     if minutes > sla_minutes:
-        reasons.append(f"Senaste körning var för {minutes:.0f} minuter sedan (SLA {sla_minutes} min)")
-    if status and status != "success":
-        reasons.append(f"Senaste körning avslutades med status '{status}'")
+        reasons.append(f"Senaste lyckade körning var för {minutes:.0f} minuter sedan (SLA {sla_minutes} min)")
+        if status and status != "success":
+            reasons.append(f"Senaste försöket avslutades med status '{status}'")
     if (health.get("quarantined_rows") or 0) > 0:
         reasons.append(f"{health['quarantined_rows']} rader i karantän")
     return Verdict(not reasons, round(minutes, 1), status, reasons)

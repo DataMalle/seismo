@@ -110,8 +110,12 @@ def build_url(window: Window, *, offset: int = 1, limit: int = PAGE_LIMIT) -> st
     return f"{FDSN_BASE}?{urllib.parse.urlencode(params)}"
 
 
-def fetch_json(url: str, *, retries: int = 3, timeout: int = 60) -> dict:
-    """Hämtar JSON med exponentiell backoff. 204 (inga resultat) tolkas som tom FeatureCollection."""
+def fetch_json(url: str, *, retries: int = 5, timeout: int = 60) -> dict:
+    """Hämtar JSON med exponentiell backoff (2, 4, 8, 16 s). 204 (inga resultat) tolkas som tom FeatureCollection.
+
+    USGS svarar ibland med 502/504 under korta avbrott. Ett par sekunders omförsök räcker inte för dem,
+    men en halv minut gör det oftast.
+    """
     last: Exception | None = None
     for attempt in range(retries):
         try:
@@ -125,7 +129,8 @@ def fetch_json(url: str, *, retries: int = 3, timeout: int = 60) -> dict:
             last = e
         except Exception as e:
             last = e
-        time.sleep(2**attempt)
+        if attempt < retries - 1:
+            time.sleep(2 ** (attempt + 1))
     raise RuntimeError(f"Kunde inte hämta {url}: {last}")
 
 
