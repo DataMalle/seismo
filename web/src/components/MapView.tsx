@@ -1,10 +1,15 @@
-import { Map as MapLibreMap, NavigationControl, Popup, type GeoJSONSource } from "maplibre-gl";
+import { Map as MapLibreMap, NavigationControl, Popup, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
+// Workern byggs som en egen fil av Vite och pekas ut uttryckligen. MapLibres egen sökväg (import.meta.url) pekar fel när
+// biblioteket ligger i en buntad fil, och då startar aldrig kartan ("Worker failed to load").
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureCollection } from "geojson";
 import { useEffect, useRef } from "react";
 import { formatDateTime, formatMagnitude } from "../lib/format";
 import { DEPTH_BANDS, UNKNOWN_DEPTH_COLOR } from "../lib/insights";
 import type { EventMapRow } from "../lib/types";
+
+setWorkerUrl(workerUrl);
 
 // CARTO Dark Matter: mörk, gratis bakgrundskarta utan token. Passar den svarta designen.
 const STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -58,7 +63,9 @@ export function MapView({ events }: { events: EventMapRow[] }) {
       container: container.current,
       style: STYLE,
       center: [10, 20],
-      zoom: 1.2,
+      // Hela världen ska rymmas på bredden: en mobilskärm startar utzoomad, en bred skärm på zoom 1,2.
+      zoom: Math.min(Math.max(Math.log2(container.current.clientWidth / 512), -1), 1.2),
+      minZoom: -1,
       attributionControl: { compact: true },
     });
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
