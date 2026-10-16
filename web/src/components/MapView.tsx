@@ -1,4 +1,11 @@
-import { Map as MapLibreMap, NavigationControl, Popup, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
+import {
+  Map as MapLibreMap,
+  NavigationControl,
+  Popup,
+  setWorkerUrl,
+  type ExpressionSpecification,
+  type GeoJSONSource,
+} from "maplibre-gl";
 // Workern byggs som en egen fil av Vite och pekas ut uttryckligen. MapLibres egen sökväg (import.meta.url) pekar fel när
 // biblioteket ligger i en buntad fil, och då startar aldrig kartan ("Worker failed to load").
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -15,6 +22,25 @@ setWorkerUrl(workerUrl);
 const STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 const SOURCE = "events";
 const LAYER = "events-circles";
+
+/** Cirkelradie i pixlar efter magnitud, skalad med `scale`. Samma form som tidigare, bara multiplicerad. */
+function radiusByMagnitude(scale: number): ExpressionSpecification {
+  return [
+    "interpolate",
+    ["linear"],
+    ["coalesce", ["get", "magnitude"], 0],
+    0,
+    2 * scale,
+    2,
+    3 * scale,
+    4,
+    7 * scale,
+    6,
+    18 * scale,
+    8,
+    40 * scale,
+  ];
+}
 
 function toGeoJson(events: EventMapRow[]): FeatureCollection {
   return {
@@ -89,22 +115,20 @@ export function MapView({ events }: { events: EventMapRow[] }) {
             300,
             DEPTH_BANDS[2].color,
           ],
+          // Radien följer både magnitud och zoom. Utzoomad (hela världen på en mobil) krymper alla cirklar så att de inte
+          // täcker kartan, och inzoomat växer de så att enskilda skalv syns tydligt.
           "circle-radius": [
             "interpolate",
             ["linear"],
-            ["coalesce", ["get", "magnitude"], 0],
-            0,
-            2,
-            2,
-            3,
+            ["zoom"],
+            -1,
+            radiusByMagnitude(0.2),
+            1.2,
+            radiusByMagnitude(0.8),
             4,
-            7,
-            6,
-            18,
-            8,
-            40,
+            radiusByMagnitude(1.2),
           ],
-          "circle-opacity": 0.8,
+          "circle-opacity": 0.6,
           "circle-stroke-width": 0.5,
           "circle-stroke-color": "#000000",
         },
